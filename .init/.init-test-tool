@@ -1,0 +1,4 @@
+{
+    "command": "python manage.py test",
+    "working_directory": "/tmp/kavia/workspace/code-generation/note-keeper-192753-192762/django_backend"
+}
