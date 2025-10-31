@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from urllib.parse import urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,6 +29,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     '.kavia.ai',
+    '.api.kavia.app',
     'localhost',
     '127.0.0.1',
     'testserver',
@@ -82,13 +85,49 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# Prefer PostgreSQL via DATABASE_URL or discrete PG_* vars; fallback to SQLite for local dev.
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+def _postgres_from_env():
+    db_url = os.getenv("DATABASE_URL")
+    if db_url:
+        parsed = urlparse(db_url)
+        return {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed.path.lstrip('/'),
+            'USER': parsed.username,
+            'PASSWORD': parsed.password,
+            'HOST': parsed.hostname,
+            'PORT': parsed.port or '5432',
+        }
+
+    pg_name = os.getenv("POSTGRES_DB")
+    pg_user = os.getenv("POSTGRES_USER")
+    pg_password = os.getenv("POSTGRES_PASSWORD")
+    pg_host = os.getenv("POSTGRES_HOST")
+    pg_port = os.getenv("POSTGRES_PORT", "5432")
+
+    if all([pg_name, pg_user, pg_password, pg_host]):
+        return {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': pg_name,
+            'USER': pg_user,
+            'PASSWORD': pg_password,
+            'HOST': pg_host,
+            'PORT': pg_port,
+        }
+    return None
+
+
+_pg_cfg = _postgres_from_env()
+if _pg_cfg:
+    DATABASES = {'default': _pg_cfg}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
 
 
 # Password validation
